@@ -6,14 +6,14 @@ services:
     volumes:
       - ./cleaned_data:/data
     ports:
-      - "5000:5000"
+      - "5001:5001"
 
   dashboard:
     build: ./dashboard
     volumes:
       - ./cleaned_data:/data
     ports:
-      - "8501:8501"
+      - "8502:8502"
     depends_on:
       - api
   
