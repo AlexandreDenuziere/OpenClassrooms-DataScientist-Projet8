@@ -28,7 +28,7 @@ with st.form("form"):
     submit = st.form_submit_button("Get score for this customer")
 
 if submit:
-    response = requests.get(f"http://api:5000/api/v1/customer?id={customer_id}")
+    response = requests.get(f"http://api:5001/api/v1/customer?id={customer_id}")
     if response.status_code == 200:
         response_data = response.json()
         st.write(response_data)
