@@ -1,7 +1,7 @@
 import requests
 import time
 
-api_url = f"http://localhost:5000/api/v1/customer"
+api_url = f"http://localhost:5001/api/v1/customer"
 
 # Waiting for the API to be ready before starting tests
 def wait_for_api(url, timeout=120):
