@@ -44,31 +44,33 @@ with st.form("form"):
     st.write("Selection of the customer")
     customer_id = st.selectbox("Pick a customer", data["SK_ID_CURR"])
     submit = st.form_submit_button("Get score for this customer")
-
-# Get customer data
-customer_data = get_customer_data(data, customer_id)
-# Arrange customer data to display it
-if customer_data["CODE_GENDER"][0] == 0 :
-    gender = " - is a **man**."
-    pronoun = "He"
-else :
-    gender = " - is a **woman**."
-    pronoun = "She"
-age = f" - {pronoun} is **{customer_data["AGE"][0]}** years old."
-childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"][0]}** childrens."
-employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"][0]}** years."
-income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"][0]}**$."
-if customer_data["FLAG_OWN_CAR"][0] == 0 :
-    car = f" - {pronoun} **does not own** a car."
-else :
-    car = f" - {pronoun} **owns** a car."
-if customer_data["FLAG_OWN_REALTY"][0] == 0 :
-    realty = f" - {pronoun} **does not own** real estate."
-else :
-    realty = f" - {pronoun} **owns** real estate."
  
 if submit:
+    # Get customer data
+    customer_data = get_customer_data(data, customer_id)
+    # Arrange customer data to display it
+    if customer_data["CODE_GENDER"][0] == 0 :
+        gender = " - is a **man**."
+        pronoun = "He"
+    else :
+        gender = " - is a **woman**."
+        pronoun = "She"
+    age = f" - {pronoun} is **{customer_data["AGE"][0]}** years old."
+    childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"][0]}** childrens."
+    employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"][0]}** years."
+    income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"][0]}**$."
+    if customer_data["FLAG_OWN_CAR"][0] == 0 :
+        car = f" - {pronoun} **does not own** a car."
+    else :
+        car = f" - {pronoun} **owns** a car."
+    if customer_data["FLAG_OWN_REALTY"][0] == 0 :
+        realty = f" - {pronoun} **does not own** real estate."
+    else :
+        realty = f" - {pronoun} **owns** real estate."
+
+    # Get data from the API
     response = requests.get(f"http://api:5001/api/v1/customer?id={customer_id}")
+    
     if response.status_code == 200:
         response_data = response.json()
         tab1, tab2, tab3 = st.tabs(["Customer data", "Credit response", "Score explanations"])
