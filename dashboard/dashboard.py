@@ -48,21 +48,21 @@ with st.form("form"):
 # Get customer data
 customer_data = get_customer_data(data, customer_id)
 # Arrange customer data to display it
-if customer_data["CODE_GENDER"] == 0 :
+if customer_data["CODE_GENDER"][0] == 0 :
     gender = " - is a **man**."
     pronoun = "He"
 else :
     gender = " - is a **woman**."
     pronoun = "She"
-age = f" - {pronoun} is **{customer_data["AGE"]}** years old."
-childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"]}** childrens."
-employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"]}** years."
-income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"]}**$."
-if customer_data["FLAG_OWN_CAR"] == 0 :
+age = f" - {pronoun} is **{customer_data["AGE"][0]}** years old."
+childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"][0]}** childrens."
+employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"][0]}** years."
+income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"][0]}**$."
+if customer_data["FLAG_OWN_CAR"][0] == 0 :
     car = f" - {pronoun} **does not own** a car."
 else :
     car = f" - {pronoun} **owns** a car."
-if customer_data["FLAG_OWN_REALTY"] == 0 :
+if customer_data["FLAG_OWN_REALTY"][0] == 0 :
     realty = f" - {pronoun} **does not own** real estate."
 else :
     realty = f" - {pronoun} **owns** real estate."
