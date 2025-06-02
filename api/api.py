@@ -15,7 +15,7 @@ app = flask.Flask(__name__)
 # Load the model
 model = pickle.load(open("./model/model.pkl", "rb"))
 # Load the data
-df = pd.read_csv("/data/test_data_cleaned.csv").drop("TARGET", axis=1)
+df = pd.read_csv("/data/test_data_cleaned.csv")
 
 @app.route("/api/v1/customer", methods=["GET"])
 def api_id():
