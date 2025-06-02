@@ -5,6 +5,7 @@ api_url = f"http://localhost:5001/api/v1/customer"
 
 # Waiting for the API to be ready before starting tests
 def wait_for_api(url, timeout=300):
+    print("Waiting API to restart!")
     start_time = time.time()
     while True:
         try:
@@ -19,10 +20,10 @@ def wait_for_api(url, timeout=300):
         time.sleep(2)  # Retry every 2 seconds
 
 # Before lauching tests we use th e wait function
-wait_for_api(api_url + "?id=100001")
+wait_for_api(api_url + "?id=231433")
 
 def test_api_valid_customer():
-    response = requests.get(f"{api_url}?id=100001")
+    response = requests.get(f"{api_url}?id=231433")
     assert response.status_code == 200
     json_data = response.json()
     assert "Probability of the customer being a good one" in json_data
