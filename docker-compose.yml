@@ -4,14 +4,14 @@ services:
   api:
     build: ./api
     volumes:
-      - ./cleaned_data:/data
+      - ./data:/data
     ports:
       - "5001:5001"
 
   dashboard:
     build: ./dashboard
     volumes:
-      - ./cleaned_data:/data
+      - ./data:/data
     ports:
       - "8502:8502"
     depends_on:
