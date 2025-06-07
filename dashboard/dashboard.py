@@ -4,6 +4,7 @@ import numpy as np
 import requests
 import pickle
 import shap
+import matplotlib.pyplot as plt
 
 # Page config
 st.set_page_config(page_title="Customer dashboard", layout="wide")
@@ -89,14 +90,14 @@ def load_model():
 
 # Extract scaler and model  from the pkl model
 @st.cache_resource
-def load_scaler_model(pkl_model):
+def load_scaler_model(_pkl_model):
     scaler = pkl_model.named_steps["scaler"]
     model = pkl_model.named_steps["model"]
     return scaler, model
 
 # Compute feature importance
 @st.cache_data
-def get_shap_values(model, scaler):
+def get_shap_values(_model, _scaler):
     # Scale the data
     data_transformed = scaler.transform(data)
     # Calculate the shap values
@@ -205,17 +206,23 @@ global_feature_importance = get_global_feature_importance(shap_values)
 data_load_state.text('Loading data...done!')
 ### DATA LOADING ###
 
+# Initialize session_state
+if "customer_id" not in st.session_state:
+    st.session_state.customer_id = "231433"
+
 # Create the from where the user have to select the customer ID
-with st.form("form"):
+with st.form("customer_selection_form"):
     st.write("Selection of the customer")
     customer_id = st.selectbox("Pick a customer", data["SK_ID_CURR"])
     submit = st.form_submit_button("Get score for this customer")
 
 # When submit is pressed
 if submit:
+    # Save customer_id in sessions_state
+    st.session_state.customer_id = customer_id
     # Get customer data
-    customer_data = get_customer_data(data, customer_id)
-    customer_index = data.loc[data["SK_ID_CURR"] == customer_id, :].index[0]
+    customer_data = get_customer_data(data, st.session_state.customer_id)
+    customer_index = data.loc[data["SK_ID_CURR"] == st.session_state.customer_id, :].index[0]
     local_feature_importance = get_local_feature_importance(shap_values, customer_index)
     # Arrange customer data to display it
     gender, age, childrens, employed, income, car, realty = arrange_customer_data(customer_data)
@@ -226,7 +233,7 @@ if submit:
     )
     
     # Get data from the API
-    response_data = get_scoring_data(customer_id)
+    response_data = get_scoring_data(st.session_state.customer_id)
 
 	# Create different tabs to organize the application
     tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
@@ -234,7 +241,7 @@ if submit:
 	# In the first tab, we display the customer data
     with tab1:
         st.header("Customer data")
-        st.write(f"Customer ID {customer_id}")
+        st.write(f"Customer ID {st.session_state.customer_id}")
         st.write(gender)
         st.write(age)
         st.write(childrens)
@@ -271,9 +278,49 @@ if submit:
 	# In the third tab, we display univariate analysis of a feature
     with tab3:
         st.header("Analyze a feature")
-        selected_feature = st.selectbox("Select a feature to analyze", data.columns)
-        st.write(selected_feature)
+
+        # Create a session state variable to store the feature to analyze
+        if "selected_feature" not in st.session_state:
+            st.session_state.selected_feature = data.columns[1]
+        if "selected_feature_tmp" not in st.session_state:
+            st.session_state.selected_feature_tmp = st.session_state.selected_feature
+
+        # Create a form to select the feature
+        with st.form("feature_analysis_form"):
+            st.selectbox(
+                "Select a feature to analyze",
+                data.columns.tolist(),
+                index=data.columns.get_loc(st.session_state.selected_feature),
+                key="selected_feature_tmp"
+            )
+            apply_feature = st.form_submit_button("Get analysis")
+
+        # Store the selected feature in session_state
+        if apply_feature:
+            st.session_state.selected_feature = st.session_state.selected_feature_tmp
+
+        # Plot the histogram
+        st.write(f"Analysis of the {st.session_state.selected_feature} feature for our customer compared to the population")
+        # Create the matplotlib figure
+        fig, ax = plt.subplots()
+        # Create the histogram for all the population
+        ax.hist(
+            data[st.session_state.selected_feature], bins=30, alpha=0.7, label="Population"
+        )
+        # Create a line for ou customer
+        client_value = data.loc[
+            data["SK_ID_CURR"] == st.session_state.customer_id,
+            st.session_state.selected_feature
+        ].iloc[0]
+        ax.axvline(client_value, color="red", linestyle="--", linewidth=2, label=f"Client {st.session_state.customer_id}")
+        # Decoration of the plot
+        ax.set_title(f"Distribution of {st.session_state.selected_feature}")
+        ax.set_xlabel(st.session_state.selected_feature)
+        ax.set_ylabel("Number of customers")
+        ax.legend()
+        # Plot everything in streamlit
+        st.pyplot(fig)
     # For the fourth tab, we display bivariate analysis of features
     with tab4:
         st.header("Analyze two features")
-
+ 
