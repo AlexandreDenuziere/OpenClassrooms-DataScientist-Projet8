@@ -82,17 +82,20 @@ def get_customer_data(data, customer_id):
     return customer_data.iloc[0]
 
 # Load the model
+@st.cache_resource
 def load_model():
     pkl_model = pickle.load(open(MODEL_PATH, "rb"))
     return pkl_model
 
 # Extract scaler and model  from the pkl model
+@st.cache_resource
 def load_scaler_model(pkl_model):
     scaler = pkl_model.named_steps["scaler"]
     model = pkl_model.named_steps["model"]
     return scaler, model
 
 # Compute feature importance
+@st.cache_data
 def get_shap_values(model, scaler):
     # Scale the data
     data_transformed = scaler.transform(data)
@@ -102,6 +105,7 @@ def get_shap_values(model, scaler):
     return shap_values
 
 # Compute global feature importance
+@st.cache_data
 def get_global_feature_importance(shap_values):
     # First we get all values in absolute
     shap_values_abs = np.abs(shap_values)
@@ -251,6 +255,7 @@ if submit:
         with tab3:
             st.header("Analyze a feature")
             selected_feature = st.selectbox("Select a feature to analyze", data.columns)
+            st.write(selected_feature)
         with tab4:
             st.header("Analyze two features")
     else :
