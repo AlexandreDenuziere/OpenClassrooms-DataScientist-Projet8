@@ -128,6 +128,58 @@ def get_local_feature_importance(shap_values, customer_index):
     ).reset_index(names="Feature")
     return local_feature_importance
 
+@st.cache_data
+def arrange_customer_data(customer_data):
+    if customer_data["CODE_GENDER"] == 0 :
+        gender = " - is a **man**."
+        pronoun = "He"
+    else :
+        gender = " - is a **woman**."
+        pronoun = "She"
+    age = f" - {pronoun} is **{customer_data["AGE"]}** years old."
+    childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"]}** childrens."
+    employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"]}** years."
+    income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"]}**$."
+    if customer_data["FLAG_OWN_CAR"] == 0 :
+        car = f" - {pronoun} **does not own** a car."
+    else :
+        car = f" - {pronoun} **owns** a car."
+    if customer_data["FLAG_OWN_REALTY"] == 0 :
+        realty = f" - {pronoun} **does not own** real estate."
+    else :
+        realty = f" - {pronoun} **owns** real estate."
+    return gender, age, childrens, employed, income, car, realty
+
+@st.cache_data
+def get_main_important_features(local_feature_importance, global_feature_importance):
+    # Get 10 most important positive features
+    positive_important_features = local_feature_importance.loc[
+         local_feature_importance["Local Importance"] > 0, :
+    ].sort_values(by="Local Importance", ascending=False, key=abs).head(10)
+    # Get 10 most important negative features
+    negative_important_features = local_feature_importance.loc[
+         local_feature_importance["Local Importance"] < 0, :
+    ].sort_values(by="Local Importance", ascending=False, key=abs).head(10)
+
+    # Add global importance
+    positive_important_features = positive_important_features.merge(global_feature_importance)
+    negative_important_features = negative_important_features.merge(global_feature_importance)
+
+    # Put everything in absolute value
+    positive_important_features["Local Importance"] = np.abs(positive_important_features["Local Importance"])
+    negative_important_features["Local Importance"] = np.abs(negative_important_features["Local Importance"])
+
+    return positive_important_features, negative_important_features
+
+@st.cache_data
+def get_scoring_data(customer_id):
+    response = requests.get(f"http://api:5001/api/v1/customer?id={customer_id}")
+    # Check that we got a valide answer from the API
+    if response.status_code == 200:
+        response_data = response.json()
+        return response_data
+    else :
+        st.error("Invalid customer ID or error from API")
 ### UTILITY FUNCTIONS ###
 
 ### DATA LOADING ###
@@ -166,97 +218,62 @@ if submit:
     customer_index = data.loc[data["SK_ID_CURR"] == customer_id, :].index[0]
     local_feature_importance = get_local_feature_importance(shap_values, customer_index)
     # Arrange customer data to display it
-    if customer_data["CODE_GENDER"] == 0 :
-        gender = " - is a **man**."
-        pronoun = "He"
-    else :
-        gender = " - is a **woman**."
-        pronoun = "She"
-    age = f" - {pronoun} is **{customer_data["AGE"]}** years old."
-    childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"]}** childrens."
-    employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"]}** years."
-    income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"]}**$."
-    if customer_data["FLAG_OWN_CAR"] == 0 :
-        car = f" - {pronoun} **does not own** a car."
-    else :
-        car = f" - {pronoun} **owns** a car."
-    if customer_data["FLAG_OWN_REALTY"] == 0 :
-        realty = f" - {pronoun} **does not own** real estate."
-    else :
-        realty = f" - {pronoun} **owns** real estate."
-
+    gender, age, childrens, employed, income, car, realty = arrange_customer_data(customer_data)
+    
     # Get main features by importance
-    # Get 10 most important positive features
-    positive_important_features = local_feature_importance.loc[
-         local_feature_importance["Local Importance"] > 0, :
-    ].sort_values(by="Local Importance", ascending=False, key=abs).head(10)
-    # Get 10 most important negative features
-    negative_important_features = local_feature_importance.loc[
-         local_feature_importance["Local Importance"] < 0, :
-    ].sort_values(by="Local Importance", ascending=False, key=abs).head(10)
-
-    # Add global importance
-    positive_important_features = positive_important_features.merge(global_feature_importance)
-    negative_important_features = negative_important_features.merge(global_feature_importance)
-
-    # Put everything in absolute value
-    positive_important_features["Local Importance"] = np.abs(positive_important_features["Local Importance"])
-    negative_important_features["Local Importance"] = np.abs(negative_important_features["Local Importance"])
-
+    positive_important_features, negative_important_features = get_main_important_features(
+        local_feature_importance, global_feature_importance
+    )
+    
     # Get data from the API
-    response = requests.get(f"http://api:5001/api/v1/customer?id={customer_id}")
-
-    # Check that we got a valide answer from the API
-    if response.status_code == 200:
-        response_data = response.json()
+    response_data = get_scoring_data(customer_id)
 
 	# Create different tabs to organize the application
-        tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
 
 	# In the first tab, we display the customer data
-        with tab1:
-            st.header("Customer data")
-            st.write(f"Customer ID {customer_id}")
-            st.write(gender)
-            st.write(age)
-            st.write(childrens)
-            st.write(employed)
-            st.write(income)
-            st.write(car)
-            st.write(realty)
+    with tab1:
+        st.header("Customer data")
+        st.write(f"Customer ID {customer_id}")
+        st.write(gender)
+        st.write(age)
+        st.write(childrens)
+        st.write(employed)
+        st.write(income)
+        st.write(car)
+        st.write(realty)
 	# In the second tab we display the response of the model
-        with tab2:
-            st.header("Credit response")
-            score = response_data["Probability of the customer being a good one"]
-            st.progress(score, f"Probability of the customer being a good one : {np.round(score*100, 1)} %")
-            st.markdown("######")
+    with tab2:
+        st.header("Credit response")
+        score = response_data["Probability of the customer being a good one"]
+        st.progress(score, f"Probability of the customer being a good one : {np.round(score*100, 1)} %")
+        st.markdown("######")
 
-            with st.expander("See score explanations"):
-                st.subheader("Most positive features")
-                st.dataframe(
-                   positive_important_features,
-                   hide_index=True
-                )
-                st.subheader("Most negative features")
-                st.dataframe(
-                    negative_important_features,
-                    hide_index=True
-                )
+        with st.expander("See score explanations"):
+            st.subheader("Most positive features")
+            st.dataframe(
+               positive_important_features,
+               hide_index=True
+            )
+            st.subheader("Most negative features")
+            st.dataframe(
+                negative_important_features,
+                hide_index=True
+            )
 
-                # Add explanations about table displayed
-                st.markdown("""
-                **Notes :**
-                - The above tables are displaying which features of the customer are the most impacting its score.
-                - **Local importance** are the score obtained by the customer.
-                - It is compared to the **global importance** which is the mean of the score of every customers.
-                """)
+            # Add explanations about table displayed
+            st.markdown("""
+            **Notes :**
+            - The above tables are displaying which features of the customer are the most impacting its score.
+            - **Local importance** are the score obtained by the customer.
+            - It is compared to the **global importance** which is the mean of the score of every customers.
+            """)
+	# In the third tab, we display univariate analysis of a feature
+    with tab3:
+        st.header("Analyze a feature")
+        selected_feature = st.selectbox("Select a feature to analyze", data.columns)
+        st.write(selected_feature)
+    # For the fourth tab, we display bivariate analysis of features
+    with tab4:
+        st.header("Analyze two features")
 
-	# In the third tab
-        with tab3:
-            st.header("Analyze a feature")
-            selected_feature = st.selectbox("Select a feature to analyze", data.columns)
-            st.write(selected_feature)
-        with tab4:
-            st.header("Analyze two features")
-    else :
-        st.error("Invalid customer ID or error from API")
