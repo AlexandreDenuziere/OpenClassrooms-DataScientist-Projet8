@@ -15,6 +15,11 @@ if "show_accessibility" not in st.session_state:
     st.session_state.show_accessibility = False
 if "font_size" not in st.session_state:
     st.session_state.font_size = "medium"
+if "customer_id" not in st.session_state:
+    st.session_state.customer_id = "231433"
+if "rerun" not in st.session_state:
+    st.session_state.rerun = False
+
 # Initialize temp variables for the form
 if "temp_font_size" not in st.session_state:
     st.session_state.temp_font_size = st.session_state.font_size
@@ -91,17 +96,17 @@ def load_model():
 # Extract scaler and model  from the pkl model
 @st.cache_resource
 def load_scaler_model(_pkl_model):
-    scaler = pkl_model.named_steps["scaler"]
-    model = pkl_model.named_steps["model"]
+    scaler = _pkl_model.named_steps["scaler"]
+    model = _pkl_model.named_steps["model"]
     return scaler, model
 
 # Compute feature importance
 @st.cache_data
 def get_shap_values(_model, _scaler):
     # Scale the data
-    data_transformed = scaler.transform(data)
+    data_transformed = _scaler.transform(data)
     # Calculate the shap values
-    explainer = shap.TreeExplainer(model)
+    explainer = shap.TreeExplainer(_model)
     shap_values = explainer.shap_values(data)
     return shap_values
 
@@ -175,7 +180,7 @@ def get_main_important_features(local_feature_importance, global_feature_importa
 @st.cache_data
 def get_scoring_data(customer_id):
     response = requests.get(f"http://api:5001/api/v1/customer?id={customer_id}")
-    # Check that we got a valide answer from the API
+    # Check that we got a valid answer from the API
     if response.status_code == 200:
         response_data = response.json()
         return response_data
@@ -206,18 +211,17 @@ global_feature_importance = get_global_feature_importance(shap_values)
 data_load_state.text('Loading data...done!')
 ### DATA LOADING ###
 
-# Initialize session_state
-if "customer_id" not in st.session_state:
-    st.session_state.customer_id = "231433"
-
-# Create the from where the user have to select the customer ID
+# Create the form where the user have to select the customer ID
 with st.form("customer_selection_form"):
     st.write("Selection of the customer")
+    st.write(st.session_state.rerun)
     customer_id = st.selectbox("Pick a customer", data["SK_ID_CURR"])
     submit = st.form_submit_button("Get score for this customer")
+    st.session_state.rerun = False
 
 # When submit is pressed
-if submit:
+if submit or st.session_state.rerun:
+    st.write(st.session_state.rerun)
     # Save customer_id in sessions_state
     st.session_state.customer_id = customer_id
     # Get customer data
@@ -285,19 +289,19 @@ if submit:
         if "selected_feature_tmp" not in st.session_state:
             st.session_state.selected_feature_tmp = st.session_state.selected_feature
 
-        # Create a form to select the feature
-        with st.form("feature_analysis_form"):
-            st.selectbox(
-                "Select a feature to analyze",
-                data.columns.tolist(),
-                index=data.columns.get_loc(st.session_state.selected_feature),
-                key="selected_feature_tmp"
-            )
-            apply_feature = st.form_submit_button("Get analysis")
-
-        # Store the selected feature in session_state
-        if apply_feature:
+        # Define a callback function to update the session_state variable
+        def on_feature_change():
             st.session_state.selected_feature = st.session_state.selected_feature_tmp
+
+        st.selectbox(
+            "Which feature to you want to analyze ?",
+            data.columns.tolist(),
+            key="selected_feature_tmp",
+            index=data.columns.get_loc(st.session_state.selected_feature),
+            placeholder="Select the feature from the list above",
+            on_change=on_feature_change
+        )
+        st.session_state.rerun = True
 
         # Plot the histogram
         st.write(f"Analysis of the {st.session_state.selected_feature} feature for our customer compared to the population")
@@ -307,7 +311,7 @@ if submit:
         ax.hist(
             data[st.session_state.selected_feature], bins=30, alpha=0.7, label="Population"
         )
-        # Create a line for ou customer
+        # Create a line for our customer
         client_value = data.loc[
             data["SK_ID_CURR"] == st.session_state.customer_id,
             st.session_state.selected_feature
@@ -323,4 +327,4 @@ if submit:
     # For the fourth tab, we display bivariate analysis of features
     with tab4:
         st.header("Analyze two features")
- 
+
