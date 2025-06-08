@@ -138,26 +138,43 @@ def get_local_feature_importance(shap_values, customer_index):
 
 @st.cache_data
 def arrange_customer_data(customer_data):
+    general_attributes_list = [
+        "Gender", "Age", "Number of children", 
+        "Time employed", "Owns a car", "Owns realty",
+        "Credit amount"
+    ]
     if customer_data["CODE_GENDER"] == 0 :
         gender = "Man"
     else :
         gender = "Woman"
-    age = f" - {pronoun} is **{customer_data["AGE"]}** years old."
-    childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"]}** childrens."
-    employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"]}** years."
-    income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"]}**$."
-    credit = f" - {pronoun} have a credit amount of **{customer_data["AMT_CREDIT"]}**$."
-    annuity = f" - {pronoun} have a loan annuity of **{customer_data["AMT_ANNUITY"]}**"
+    age = f"{customer_data["AGE"]} years old."
+    childrens = f"{customer_data["CNT_CHILDREN"]} childrens."
+    employed = f"{customer_data["TIME_EMPLOYED"]} years."
     if customer_data["FLAG_OWN_CAR"] == 0 :
-        car = f" - {pronoun} **does not own** a car."
+        car = f"Does not own a car."
     else :
-        car = f" - {pronoun} **owns** a car."
+        car = f"Owns a car."
     if customer_data["FLAG_OWN_REALTY"] == 0 :
-        realty = f" - {pronoun} **does not own** real estate."
+        realty = f"Does not own real estate."
     else :
-        realty = f" - {pronoun} **owns** real estate."
-
-    return gender, age, childrens, employed, income, credit, annuity, car, realty
+        realty = f"Owns real estate."
+    credit = customer_data["AMT_CREDIT"]
+    general_values_list = [gender, age, childrens, employed, car, realty, credit]
+    general_data = pd.DataFrame.from_dict({
+        "Attributes": general_attributes_list,
+        "Values": general_values_list
+    })
+    
+    income = customer_data["AMT_INCOME_TOTAL"]
+    annuity = customer_data["AMT_ANNUITY"]
+    financial_attributes_list = ["Income", "Credit", "Annuity"]
+    financial_values_list = [income, credit, annuity]
+    financial_data = pd.DataFrame.from_dict({
+        "Attributes": financial_attributes_list,
+        "Values": financial_values_list
+    })
+    
+    return general_data, financial_data
 
 @st.cache_data
 def get_main_important_features(local_feature_importance, global_feature_importance):
@@ -243,7 +260,7 @@ if submit or st.session_state.rerun:
     customer_index = data.loc[data["SK_ID_CURR"] == st.session_state.customer_id, :].index[0]
     local_feature_importance = get_local_feature_importance(shap_values, customer_index)
     # Arrange customer data to display it
-    gender, age, childrens, employed, income, credit, annuity, car, realty = arrange_customer_data(customer_data)
+    general_data, financial_data = arrange_customer_data(customer_data)
     
     # Get main features by importance
     positive_important_features, negative_important_features = get_main_important_features(
@@ -257,16 +274,25 @@ if submit or st.session_state.rerun:
     with tab1:
         st.header("Customer data")
         st.write(f"Customer ID {st.session_state.customer_id}")
-        st.write(gender)
-        st.write(age)
-        st.write(childrens)
-        st.write(employed)
-        st.write(car)
-        st.write(realty)
-
+        st.dataframe(general_data, hide_index=True)
+        
         # Create a bar chart to display income and credit amo
         fig, ax = plt.subplots()
-
+        ax.barh(
+            financial_data.loc[financial_data["Attributes"] == "Income", "Attributes"],
+            financial_data.loc[financial_data["Attributes"] == "Income", "Values"]   
+        )
+        ax.barh(
+            financial_data.loc[financial_data["Attributes"] == "Annuity", "Attributes"],
+            financial_data.loc[financial_data["Attributes"] == "Annuity", "Values"] 
+        )
+        ax.axvline(
+            0.33*financial_data.loc[financial_data["Attributes"] == "Income", "Values"][0], 
+            color="red", linestyle="--", linewidth=2, 
+            label="Maximum debt ratio"
+        )
+        plt.legend()
+        plt.show()
     # In the second tab we display the response of the model
     with tab2:
         st.header("Credit response")
