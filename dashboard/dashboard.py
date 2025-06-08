@@ -140,7 +140,7 @@ def get_local_feature_importance(shap_values, customer_index):
 def arrange_customer_data(customer_data):
     # Create a list of features to add to the returned dataframe
     general_attributes_list = [
-        "Gender", "Age", "Number of children", 
+        "Gender", "Age", "Number of children",
         "Time employed", "Owns a car", "Owns realty",
         "Credit amount"
     ]
@@ -168,7 +168,7 @@ def arrange_customer_data(customer_data):
         "Attributes": general_attributes_list,
         "Values": general_values_list
     })
-    
+
     # Create a list of features to add to the returned dataframe
     financial_attributes_list = ["Income", "Credit", "Annuity"]
     # Get the values of desired features
@@ -181,7 +181,7 @@ def arrange_customer_data(customer_data):
         "Attributes": financial_attributes_list,
         "Values": financial_values_list
     })
-    
+
     return general_data, financial_data
 
 @st.cache_data
@@ -214,6 +214,7 @@ def get_scoring_data(customer_id):
         return response_data
     else :
         st.error("Invalid customer ID or error from API")
+
 ### UTILITY FUNCTIONS ###
 
 ### DATA LOADING ###
@@ -221,6 +222,8 @@ def get_scoring_data(customer_id):
 DATA_URL = ("/data/cleaned_data/test_data_cleaned.csv")
 # Set model path
 MODEL_PATH = ("/data/model/model.pkl")
+# Set columns description path
+COLUMNS_URL = ("/data/columns/HomeCredit_columns_description.csv")
 
 # Create a text element and let the reader know the data is loading.
 data_load_state = st.text('Loading data...')
@@ -260,21 +263,19 @@ if submit or st.session_state.rerun:
         st.session_state.rerun = False
         tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
         st.session_state.customer_id = customer_id
-    st.write(st.session_state.rerun)
-    # Save customer_id in sessions_state
-#    st.session_state.customer_id = customer_id
+
     # Get customer data
     customer_data = get_customer_data(data, st.session_state.customer_id)
     customer_index = data.loc[data["SK_ID_CURR"] == st.session_state.customer_id, :].index[0]
     local_feature_importance = get_local_feature_importance(shap_values, customer_index)
     # Arrange customer data to display it
     general_data, financial_data = arrange_customer_data(customer_data)
-    
+
     # Get main features by importance
     positive_important_features, negative_important_features = get_main_important_features(
         local_feature_importance, global_feature_importance
     )
-    
+
     # Get data from the API
     response_data = get_scoring_data(st.session_state.customer_id)
 
@@ -283,20 +284,20 @@ if submit or st.session_state.rerun:
         st.header("Customer data")
         st.write(f"Customer ID {st.session_state.customer_id}")
         st.dataframe(general_data, hide_index=True)
-        
+
         # Create a bar chart to display income and annuity amount versus max. debt ratio
         fig, ax = plt.subplots()
         ax.barh(
             financial_data.loc[financial_data["Attributes"] == "Income", "Attributes"],
-            financial_data.loc[financial_data["Attributes"] == "Income", "Values"]   
+            financial_data.loc[financial_data["Attributes"] == "Income", "Values"]
         )
         ax.barh(
             financial_data.loc[financial_data["Attributes"] == "Annuity", "Attributes"],
-            financial_data.loc[financial_data["Attributes"] == "Annuity", "Values"] 
+            financial_data.loc[financial_data["Attributes"] == "Annuity", "Values"]
         )
         ax.axvline(
-            0.33*financial_data.loc[financial_data["Attributes"] == "Income", "Values"][0], 
-            color="red", linestyle="--", linewidth=2, 
+            0.33*financial_data.loc[financial_data["Attributes"] == "Income", "Values"][0],
+            color="red", linestyle="--", linewidth=2,
             label="Maximum debt ratio"
         )
         plt.legend()
@@ -411,7 +412,7 @@ if submit or st.session_state.rerun:
             on_change=on_feature2_change
         )
         st.session_state.rerun = True
-        
+
         # Plot the histogram
         st.write(f"Analysis of the {st.session_state.selected_feature1} feature vs the {st.session_state.selected_feature2} feature comparing our customer and the population")
         # Create the matplotlib figure
@@ -433,12 +434,12 @@ if submit or st.session_state.rerun:
         ax.scatter(
             client_value1,
             client_value2,
-            
+            label=f"Customer {st.session_state.customer_id}"
         )
         # Decoration of the plot
-        ax.set_title(f"Distribution of {st.session_state.selected_feature}")
-        ax.set_xlabel(st.session_state.selected_feature)
-        ax.set_ylabel("Number of customers")
+        ax.set_title(f"Distribution of {st.session_state.selected_feature1} vs {st.session_state.selected_feature2}")
+        ax.set_xlabel(st.session_state.selected_feature1)
+        ax.set_ylabel(st.session_state.selected_feature2)
         ax.legend()
         # Plot everything in streamlit
-        st.pyplot(fig)   
+        st.pyplot(fig)
