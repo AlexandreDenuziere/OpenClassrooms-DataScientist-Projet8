@@ -138,11 +138,13 @@ def get_local_feature_importance(shap_values, customer_index):
 
 @st.cache_data
 def arrange_customer_data(customer_data):
+    # Create a list of features to add to the returned dataframe
     general_attributes_list = [
         "Gender", "Age", "Number of children", 
         "Time employed", "Owns a car", "Owns realty",
         "Credit amount"
     ]
+    # Get the values of desired features
     if customer_data["CODE_GENDER"] == 0 :
         gender = "Man"
     else :
@@ -159,16 +161,22 @@ def arrange_customer_data(customer_data):
     else :
         realty = f"Owns real estate."
     credit = customer_data["AMT_CREDIT"]
+    # Create a list with the values
     general_values_list = [gender, age, childrens, employed, car, realty, credit]
+    # Create the dataframe
     general_data = pd.DataFrame.from_dict({
         "Attributes": general_attributes_list,
         "Values": general_values_list
     })
     
+    # Create a list of features to add to the returned dataframe
+    financial_attributes_list = ["Income", "Credit", "Annuity"]
+    # Get the values of desired features
     income = customer_data["AMT_INCOME_TOTAL"]
     annuity = customer_data["AMT_ANNUITY"]
-    financial_attributes_list = ["Income", "Credit", "Annuity"]
+    # Create a list with the values
     financial_values_list = [income, credit, annuity]
+    # Create the dataframe
     financial_data = pd.DataFrame.from_dict({
         "Attributes": financial_attributes_list,
         "Values": financial_values_list
@@ -276,7 +284,7 @@ if submit or st.session_state.rerun:
         st.write(f"Customer ID {st.session_state.customer_id}")
         st.dataframe(general_data, hide_index=True)
         
-        # Create a bar chart to display income and credit amo
+        # Create a bar chart to display income and annuity amount versus max. debt ratio
         fig, ax = plt.subplots()
         ax.barh(
             financial_data.loc[financial_data["Attributes"] == "Income", "Attributes"],
@@ -292,7 +300,7 @@ if submit or st.session_state.rerun:
             label="Maximum debt ratio"
         )
         plt.legend()
-        plt.show()
+        st.pyplot(fig)
     # In the second tab we display the response of the model
     with tab2:
         st.header("Credit response")
@@ -334,7 +342,7 @@ if submit or st.session_state.rerun:
             st.session_state.selected_feature = st.session_state.selected_feature_tmp
 
         st.selectbox(
-            "Which feature to you want to analyze ?",
+            "Which feature do you want to analyze ?",
             data.columns.tolist(),
             key="selected_feature_tmp",
             index=data.columns.get_loc(st.session_state.selected_feature),
@@ -368,3 +376,69 @@ if submit or st.session_state.rerun:
     with tab4:
         st.header("Analyze two features")
 
+        # Create a session state variable to store the feature to analyze
+        if "selected_feature1" not in st.session_state:
+            st.session_state.selected_feature1 = data.columns[1]
+        if "selected_feature_tmp1" not in st.session_state:
+            st.session_state.selected_feature_tmp1 = st.session_state.selected_feature1
+        if "selected_feature2" not in st.session_state:
+            st.session_state.selected_feature2 = data.columns[2]
+        if "selected_feature_tmp2" not in st.session_state:
+            st.session_state.selected_feature_tmp2 = st.session_state.selected_feature2
+
+        # Define a callback function to update the session_state variable
+        def on_feature1_change():
+            st.session_state.selected_feature1 = st.session_state.selected_feature_tmp1
+        def on_feature2_change():
+            st.session_state.selected_feature2 = st.session_state.selected_feature_tmp2
+
+        st.selectbox(
+            "Which is the first feature you want to plot ?",
+            data.columns.tolist(),
+            key="selected_feature_tmp1",
+            index=data.columns.get_loc(st.session_state.selected_feature1),
+            placeholder="Select the feature from the list above",
+            on_change=on_feature1_change
+        )
+        st.session_state.rerun = True
+
+        st.selectbox(
+            "Which is the second feature you want to plot ?",
+            data.columns.tolist(),
+            key="selected_feature_tmp2",
+            index=data.columns.get_loc(st.session_state.selected_feature2),
+            placeholder="Select the feature from the list above",
+            on_change=on_feature2_change
+        )
+        st.session_state.rerun = True
+        
+        # Plot the histogram
+        st.write(f"Analysis of the {st.session_state.selected_feature1} feature vs the {st.session_state.selected_feature2} feature comparing our customer and the population")
+        # Create the matplotlib figure
+        fig, ax = plt.subplots()
+        # Create the histogram for all the population
+        ax.scatter(
+            data[st.session_state.selected_feature1],
+            data[st.session_state.selected_feature2],
+        )
+        # Create a point for our customer
+        client_value1 = data.loc[
+            data["SK_ID_CURR"] == st.session_state.customer_id,
+            st.session_state.selected_feature1
+        ].iloc[0]
+        client_value2 = data.loc[
+            data["SK_ID_CURR"] == st.session_state.customer_id,
+            st.session_state.selected_feature2
+        ].iloc[0]
+        ax.scatter(
+            client_value1,
+            client_value2,
+            
+        )
+        # Decoration of the plot
+        ax.set_title(f"Distribution of {st.session_state.selected_feature}")
+        ax.set_xlabel(st.session_state.selected_feature)
+        ax.set_ylabel("Number of customers")
+        ax.legend()
+        # Plot everything in streamlit
+        st.pyplot(fig)   
