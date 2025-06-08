@@ -77,6 +77,8 @@ def get_customer_data(data, customer_id):
             "DAYS_BIRTH",
             "CNT_CHILDREN",
             "AMT_INCOME_TOTAL",
+            "AMT_CREDIT",
+            "AMT_ANNUITY",
             "DAYS_EMPLOYED",
             "FLAG_OWN_CAR",
             "FLAG_OWN_REALTY"
@@ -137,15 +139,15 @@ def get_local_feature_importance(shap_values, customer_index):
 @st.cache_data
 def arrange_customer_data(customer_data):
     if customer_data["CODE_GENDER"] == 0 :
-        gender = " - is a **man**."
-        pronoun = "He"
+        gender = "Man"
     else :
-        gender = " - is a **woman**."
-        pronoun = "She"
+        gender = "Woman"
     age = f" - {pronoun} is **{customer_data["AGE"]}** years old."
     childrens = f" - {pronoun} have **{customer_data["CNT_CHILDREN"]}** childrens."
     employed = f" - {pronoun} have been employed for **{customer_data["TIME_EMPLOYED"]}** years."
     income = f" - {pronoun} have an income of **{customer_data["AMT_INCOME_TOTAL"]}**$."
+    credit = f" - {pronoun} have a credit amount of **{customer_data["AMT_CREDIT"]}**$."
+    annuity = f" - {pronoun} have a loan annuity of **{customer_data["AMT_ANNUITY"]}**"
     if customer_data["FLAG_OWN_CAR"] == 0 :
         car = f" - {pronoun} **does not own** a car."
     else :
@@ -154,7 +156,8 @@ def arrange_customer_data(customer_data):
         realty = f" - {pronoun} **does not own** real estate."
     else :
         realty = f" - {pronoun} **owns** real estate."
-    return gender, age, childrens, employed, income, car, realty
+
+    return gender, age, childrens, employed, income, credit, annuity, car, realty
 
 @st.cache_data
 def get_main_important_features(local_feature_importance, global_feature_importance):
@@ -214,22 +217,33 @@ data_load_state.text('Loading data...done!')
 # Create the form where the user have to select the customer ID
 with st.form("customer_selection_form"):
     st.write("Selection of the customer")
-    st.write(st.session_state.rerun)
     customer_id = st.selectbox("Pick a customer", data["SK_ID_CURR"])
     submit = st.form_submit_button("Get score for this customer")
-    st.session_state.rerun = False
+
+# Initialize tabs if the customer has not changed
+if st.session_state.customer_id == customer_id:
+    st.write("Same customer")
+    tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
 
 # When submit is pressed
 if submit or st.session_state.rerun:
+    if submit and st.session_state.rerun:
+        st.rerun()
+    # If customer have changed, initialize tabs and reset rerun
+    if st.session_state.customer_id != customer_id:
+        st.write("New customer")
+        st.session_state.rerun = False
+        tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
+        st.session_state.customer_id = customer_id
     st.write(st.session_state.rerun)
     # Save customer_id in sessions_state
-    st.session_state.customer_id = customer_id
+#    st.session_state.customer_id = customer_id
     # Get customer data
     customer_data = get_customer_data(data, st.session_state.customer_id)
     customer_index = data.loc[data["SK_ID_CURR"] == st.session_state.customer_id, :].index[0]
     local_feature_importance = get_local_feature_importance(shap_values, customer_index)
     # Arrange customer data to display it
-    gender, age, childrens, employed, income, car, realty = arrange_customer_data(customer_data)
+    gender, age, childrens, employed, income, credit, annuity, car, realty = arrange_customer_data(customer_data)
     
     # Get main features by importance
     positive_important_features, negative_important_features = get_main_important_features(
@@ -239,10 +253,7 @@ if submit or st.session_state.rerun:
     # Get data from the API
     response_data = get_scoring_data(st.session_state.customer_id)
 
-	# Create different tabs to organize the application
-    tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
-
-	# In the first tab, we display the customer data
+    # In the first tab, we display the customer data
     with tab1:
         st.header("Customer data")
         st.write(f"Customer ID {st.session_state.customer_id}")
@@ -250,10 +261,13 @@ if submit or st.session_state.rerun:
         st.write(age)
         st.write(childrens)
         st.write(employed)
-        st.write(income)
         st.write(car)
         st.write(realty)
-	# In the second tab we display the response of the model
+
+        # Create a bar chart to display income and credit amo
+        fig, ax = plt.subplots()
+
+    # In the second tab we display the response of the model
     with tab2:
         st.header("Credit response")
         score = response_data["Probability of the customer being a good one"]
@@ -279,7 +293,7 @@ if submit or st.session_state.rerun:
             - **Local importance** are the score obtained by the customer.
             - It is compared to the **global importance** which is the mean of the score of every customers.
             """)
-	# In the third tab, we display univariate analysis of a feature
+    # In the third tab, we display univariate analysis of a feature
     with tab3:
         st.header("Analyze a feature")
 
@@ -309,7 +323,7 @@ if submit or st.session_state.rerun:
         fig, ax = plt.subplots()
         # Create the histogram for all the population
         ax.hist(
-            data[st.session_state.selected_feature], bins=30, alpha=0.7, label="Population"
+            data[st.session_state.selected_feature], bins=150, alpha=0.7, label="Population"
         )
         # Create a line for our customer
         client_value = data.loc[
