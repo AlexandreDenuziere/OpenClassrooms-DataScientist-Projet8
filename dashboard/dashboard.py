@@ -5,6 +5,7 @@ import requests
 import pickle
 import shap
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # Page config
 st.set_page_config(page_title="Customer dashboard", layout="wide")
@@ -170,12 +171,12 @@ def arrange_customer_data(customer_data):
     })
 
     # Create a list of features to add to the returned dataframe
-    financial_attributes_list = ["Income", "Credit", "Annuity"]
+    financial_attributes_list = ["Credit", "Income", "Annuity"]
     # Get the values of desired features
     income = customer_data["AMT_INCOME_TOTAL"]
     annuity = customer_data["AMT_ANNUITY"]
     # Create a list with the values
-    financial_values_list = [income, credit, annuity]
+    financial_values_list = [credit, income, annuity]
     # Create the dataframe
     financial_data = pd.DataFrame.from_dict({
         "Attributes": financial_attributes_list,
@@ -285,23 +286,22 @@ if submit or st.session_state.rerun:
         st.write(f"Customer ID {st.session_state.customer_id}")
         st.dataframe(general_data, hide_index=True)
 
-        # Create a bar chart to display income and annuity amount versus max. debt ratio
-        fig, ax = plt.subplots()
-        ax.barh(
-            financial_data.loc[financial_data["Attributes"] == "Income", "Attributes"],
-            financial_data.loc[financial_data["Attributes"] == "Income", "Values"]
+        # Create a bar chart to display financial data versus max. debt ratio
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=financial_data["Values"],
+            y=financial_data["Attributes"],
+            orientation="h"
+        ))
+        fig.add_vline(
+            x=financial_data.loc[
+                financial_data["Attributes"] == "Income",
+                "Values"
+            ].iloc[0] * 0.33,
+            line_color="red",
+            annotation_text="Max. debt ratio"
         )
-        ax.barh(
-            financial_data.loc[financial_data["Attributes"] == "Annuity", "Attributes"],
-            financial_data.loc[financial_data["Attributes"] == "Annuity", "Values"]
-        )
-        ax.axvline(
-            0.33*financial_data.loc[financial_data["Attributes"] == "Income", "Values"][0],
-            color="red", linestyle="--", linewidth=2,
-            label="Maximum debt ratio"
-        )
-        plt.legend()
-        st.pyplot(fig)
+        st.plotly_chart(fig)
     # In the second tab we display the response of the model
     with tab2:
         st.header("Credit response")
@@ -354,25 +354,31 @@ if submit or st.session_state.rerun:
 
         # Plot the histogram
         st.write(f"Analysis of the {st.session_state.selected_feature} feature for our customer compared to the population")
-        # Create the matplotlib figure
-        fig, ax = plt.subplots()
+        # Create the plotly figure
+        fig = go.Figure()
         # Create the histogram for all the population
-        ax.hist(
-            data[st.session_state.selected_feature], bins=150, alpha=0.7, label="Population"
+        fig.add_trace(
+            go.Histogram(
+                x=data[st.session_state.selected_feature]
+            )
         )
         # Create a line for our customer
         client_value = data.loc[
             data["SK_ID_CURR"] == st.session_state.customer_id,
             st.session_state.selected_feature
         ].iloc[0]
-        ax.axvline(client_value, color="red", linestyle="--", linewidth=2, label=f"Client {st.session_state.customer_id}")
+        fig.add_vline(
+            x=client_value,
+            line_color="red",
+            annotation_text=f"Customer {st.session_state.customer_id}"
+        )
         # Decoration of the plot
-        ax.set_title(f"Distribution of {st.session_state.selected_feature}")
-        ax.set_xlabel(st.session_state.selected_feature)
-        ax.set_ylabel("Number of customers")
-        ax.legend()
-        # Plot everything in streamlit
-        st.pyplot(fig)
+        fig.update_layout(
+            xaxis_title=f"{st.session_state.selected_feature}",
+            yaxis_title="Number of customers"
+        )
+        # Plot everything in streamlit
+        st.plotly_chart(fig)
     # For the fourth tab, we display bivariate analysis of features
     with tab4:
         st.header("Analyze two features")
@@ -415,12 +421,15 @@ if submit or st.session_state.rerun:
 
         # Plot the histogram
         st.write(f"Analysis of the {st.session_state.selected_feature1} feature vs the {st.session_state.selected_feature2} feature comparing our customer and the population")
-        # Create the matplotlib figure
-        fig, ax = plt.subplots()
+        # Create the plotly figure
+        fig = go.Figure()
         # Create the histogram for all the population
-        ax.scatter(
-            data[st.session_state.selected_feature1],
-            data[st.session_state.selected_feature2],
+        fig.add_trace(
+            go.Scatter(
+                x=data[st.session_state.selected_feature1],
+                y=data[st.session_state.selected_feature2],
+                mode="markers"
+            )
         )
         # Create a point for our customer
         client_value1 = data.loc[
@@ -431,15 +440,18 @@ if submit or st.session_state.rerun:
             data["SK_ID_CURR"] == st.session_state.customer_id,
             st.session_state.selected_feature2
         ].iloc[0]
-        ax.scatter(
-            client_value1,
-            client_value2,
-            label=f"Customer {st.session_state.customer_id}"
+        fig.add_trace(
+            go.Scatter(
+                x=[client_value1],
+                y=[client_value2],
+                mode="markers",
+                fillcolor="red",
+                text=f"Customer {st.session_state.customer_id}",
+                marker={
+                    "color": "red",
+                    "size": 8
+                }
+            )
         )
-        # Decoration of the plot
-        ax.set_title(f"Distribution of {st.session_state.selected_feature1} vs {st.session_state.selected_feature2}")
-        ax.set_xlabel(st.session_state.selected_feature1)
-        ax.set_ylabel(st.session_state.selected_feature2)
-        ax.legend()
         # Plot everything in streamlit
-        st.pyplot(fig)
+        st.plotly_chart(fig)
