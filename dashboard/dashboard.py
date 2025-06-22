@@ -260,7 +260,6 @@ if submit or st.session_state.rerun:
         st.rerun()
     # If customer have changed, initialize tabs and reset rerun
     if st.session_state.customer_id != customer_id:
-        st.write("New customer")
         st.session_state.rerun = False
         tab1, tab2, tab3, tab4 = st.tabs(["Customer data", "Credit response", "Analyze a feature", "Analyze two features"])
         st.session_state.customer_id = customer_id
